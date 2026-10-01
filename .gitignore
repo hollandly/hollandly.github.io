@@ -6,3 +6,6 @@ HANDOFF.md
 
 # macOS
 .DS_Store
+
+# 工作区本地记忆文件（项目文档，不进入 GitHub Pages 站点）
+.workbuddy/
