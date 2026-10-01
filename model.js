@@ -1,4 +1,4 @@
-/* 物流运价评估系统 - 评估引擎（纯函数，无 DOM 依赖，可在 Node 中单测）
+/* 智卡运价评估系统 - 评估引擎（纯函数，无 DOM 依赖，可在 Node 中单测）
  * 暴露 window.LRE / global.LRE：
  *   LRE.evaluate(STATE, f) -> 完整结果对象
  *   LRE.compute(STATE, f)   -> 不含保本/建议报价求解的结果（供内部复用）

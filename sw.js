@@ -1,4 +1,4 @@
-// 物流运价评估系统 · Service Worker
+// 智卡运价评估系统 · Service Worker
 // 策略：导航请求网络优先（失败回退缓存），静态资源缓存优先（回退网络并补缓存）
 const CACHE = 'lre-v1';
 
