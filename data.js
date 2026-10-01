@@ -50,9 +50,10 @@ window.DEFAULTS = {
   // 车型库：能耗、人工、过路费档位、载重/容积/月固定成本、司机时间参数。
   // fuel=百公里油耗(L)，elec=百公里电耗(kWh)，hydrogen=百公里氢耗(kg)
   // capacity=核定载重(吨)，volume=车厢容积(方)，monthlyFixed=月固定成本(元/月：月供+折旧+固定底薪+保险年分摊+年审等)
-  // 油耗/电耗参考：4.2m≈11L / 30kWh，6.8m≈16L / 50kWh，7.6m≈17L / 70kWh，
-  //               9.6m≈28L / 90kWh，13m≈35L / 150kWh，17.5m≈40L / 160kWh
-  // 氢耗（燃料电池重卡公示能耗按载重估算）：4.2m≈2.0kg / 6.8m≈3.5kg / 9.6m≈6.0kg / 13m≈8.0kg / 17.5m≈10.0kg
+  // 油耗/电耗参考（锚点：9.6m 实测 18–20L/100km≈1.5–1.6 元/km @柴油价8元/L）：
+  //   4.2m≈11L / 30kWh，6.8m≈15L / 55kWh，7.6m≈17L / 75kWh，
+  //   9.6m≈19L / 100kWh，13m≈32L / 170kWh，17.5m≈38L / 220kWh
+  // 氢耗（燃料电池重卡公示能耗按载重估算）：4.2m≈2.0kg / 6.8m≈3.5kg / 9.6m≈6.0kg / 13m≈8.5kg / 17.5m≈11.0kg
   // 三种车型能源：油 / 电 / 氢电混合（氢电混合 = 燃料电池供氢 + 动力电池补电，双能源融合核算）
   //
   // 司机人工时间参数（新版）：
@@ -60,14 +61,14 @@ window.DEFAULTS = {
   //   minChargeHours=短途半日阈值(默认4h：任务时间≤此值按半日计)，avgSpeed=综合平均时速(仅展示驾驶时长)
   //   loadingTime=默认装卸等待时长(h)，overnightAllowance=在外过夜补贴(元/晚，默认不计，可勾选)
   //   kmPerDay=计费日里程能力(单程km)：单程里程≤此值均计 1 天；超出按 ceil(单程/kmPerDay) 天。这是人工计费核心参数。
-  // 油耗参考：4.2m≈11L / 6.8m≈16L / 7.6m≈17L / 9.6m≈28L / 13m≈35L / 17.5m≈40L（满载综合，取公开评测中位偏保守值）
+  // 油耗参考（按实测锚点重标·2026-10-01）：4.2m≈11L / 6.8m≈15L / 7.6m≈17L / 9.6m≈19L(实测18–20) / 13m≈32L / 17.5m≈38L；柴油价统一8元/L，油车单价梯度 0.88→1.20→1.36→1.52→2.56→3.04 元/km
   vehicles: [
     { id:'v42',  name:'4.2m 轻卡',  energy:['油','电','氢电'], fuel:11, elec:30,  hydrogen:2.0,  toll:'一类(≤4.5t)', wage:300, kmPerDay:400, capacity:3,  volume:18,  monthlyFixed:4500,  tripWage:120, hourlyWage:38, minChargeHours:4, avgSpeed:35, loadingTime:1.0, overnightAllowance:80  },
-    { id:'v68',  name:'6.8m 中卡',  energy:['油','电','氢电'], fuel:16, elec:50,  hydrogen:3.5,  toll:'二类(2轴)',  wage:320, kmPerDay:700, capacity:8,  volume:30,  monthlyFixed:6000,  tripWage:150, hourlyWage:40, minChargeHours:4, avgSpeed:40, loadingTime:1.5, overnightAllowance:100 },
-    { id:'v76',  name:'7.6m 中卡',  energy:['油','电','氢电'], fuel:17, elec:70,  hydrogen:4.5,  toll:'二类(2轴)',  wage:350, kmPerDay:750, capacity:10, volume:45,  monthlyFixed:7000,  tripWage:180, hourlyWage:44, minChargeHours:4, avgSpeed:42, loadingTime:1.5, overnightAllowance:120 },
-    { id:'v96',  name:'9.6m 重卡',  energy:['油','电','氢电'], fuel:28, elec:90,  hydrogen:6.0,  toll:'四类(4轴)',  wage:400, kmPerDay:800, capacity:18, volume:60,  monthlyFixed:9000,  tripWage:220, hourlyWage:50, minChargeHours:4, avgSpeed:45, loadingTime:2.0, overnightAllowance:150 },
-    { id:'v13',  name:'13m 半挂',   energy:['油','电','氢电'], fuel:35, elec:150, hydrogen:8.0,  toll:'五类(5轴)',  wage:450, kmPerDay:900, capacity:30, volume:90,  monthlyFixed:15000, tripWage:260, hourlyWage:56, minChargeHours:4, avgSpeed:48, loadingTime:2.0, overnightAllowance:180 },
-    { id:'v175', name:'17.5m 大板', energy:['油','电','氢电'], fuel:40, elec:160, hydrogen:10.0, toll:'六类(6轴)', wage:500, kmPerDay:1000, capacity:35, volume:130, monthlyFixed:20000, tripWage:300, hourlyWage:62, minChargeHours:4, avgSpeed:50, loadingTime:2.5, overnightAllowance:200 }
+    { id:'v68',  name:'6.8m 中卡',  energy:['油','电','氢电'], fuel:15, elec:55,  hydrogen:3.5,  toll:'二类(2轴)',  wage:320, kmPerDay:700, capacity:8,  volume:30,  monthlyFixed:6000,  tripWage:150, hourlyWage:40, minChargeHours:4, avgSpeed:40, loadingTime:1.5, overnightAllowance:100 },
+    { id:'v76',  name:'7.6m 中卡',  energy:['油','电','氢电'], fuel:17, elec:75,  hydrogen:4.5,  toll:'二类(2轴)',  wage:350, kmPerDay:750, capacity:10, volume:45,  monthlyFixed:7000,  tripWage:180, hourlyWage:44, minChargeHours:4, avgSpeed:42, loadingTime:1.5, overnightAllowance:120 },
+    { id:'v96',  name:'9.6m 重卡',  energy:['油','电','氢电'], fuel:19, elec:100, hydrogen:6.0,  toll:'四类(4轴)',  wage:400, kmPerDay:800, capacity:18, volume:60,  monthlyFixed:9000,  tripWage:220, hourlyWage:50, minChargeHours:4, avgSpeed:45, loadingTime:2.0, overnightAllowance:150 },
+    { id:'v13',  name:'13m 半挂',   energy:['油','电','氢电'], fuel:32, elec:170, hydrogen:8.5,  toll:'五类(5轴)',  wage:450, kmPerDay:900, capacity:30, volume:90,  monthlyFixed:15000, tripWage:260, hourlyWage:56, minChargeHours:4, avgSpeed:48, loadingTime:2.0, overnightAllowance:180 },
+    { id:'v175', name:'17.5m 大板', energy:['油','电','氢电'], fuel:38, elec:220, hydrogen:11.0, toll:'六类(6轴)', wage:500, kmPerDay:1000, capacity:35, volume:130, monthlyFixed:20000, tripWage:300, hourlyWage:62, minChargeHours:4, avgSpeed:50, loadingTime:2.5, overnightAllowance:200 }
   ],
 
   // 其他变动成本
