@@ -1,0 +1,14 @@
+{
+  "name": "物流运价评估系统",
+  "short_name": "运价评估",
+  "description": "物流线路报价税后净利评估：价税分离、载重满载率、月度运营、成本科目与敏感度分析",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f7fa",
+  "theme_color": "#185fa5",
+  "icons": [
+    { "src": "icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" }
+  ]
+}
