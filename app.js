@@ -88,6 +88,10 @@
       ['capacity', 'volume', 'monthlyFixed'].forEach(function (k) {
         if (v[k] == null) v[k] = dv[k];
       });
+      // 司机人工时间参数（新增）：老存档缺失时回退 DEFAULTS 同车型默认值
+      ['tripWage', 'hourlyWage', 'minChargeHours', 'avgSpeed', 'loadingTime', 'overnightAllowance'].forEach(function (k) {
+        if (v[k] == null) v[k] = dv[k];
+      });
     });
   }
   function saveState() {
@@ -156,10 +160,13 @@
     byId('price').value = 2500;
     byId('weight').value = 3;
     if (byId('volume'))     byId('volume').value = '';
-    toggleWeight();
     var cbM = byId('cbMonthlyMode');
     if (cbM) cbM.checked = !!(STATE.config && STATE.config.monthlyRevenueMode);
     toggleMonthlyMode();
+    var cbT = byId('cbDriverTrip');
+    if (cbT) cbT.checked = !!(STATE.config && STATE.config.driverPayMode === 'trip');
+    var cbO = byId('cbIncludeOvernight');
+    if (cbO) cbO.checked = !!(STATE.config && STATE.config.includeOvernight);
     formReady = true;
   }
 
@@ -188,12 +195,6 @@
     saveState();
     renderResult();
   }
-  // 货重与方量始终可见（满载率/吨公里成本对所有模式都有意义）
-  function toggleWeight() {
-    if (byId('weightRow')) byId('weightRow').style.display = '';
-    if (byId('volumeRow')) byId('volumeRow').style.display = '';
-  }
-
   // ---------- 渲染：评估结果（实战版：含税务/载重/月度/敏感度/保本） ----------
   function renderResult() {
     var f = {
@@ -209,7 +210,9 @@
       month: byId('month').value,
       monthlyMode: !!(byId('cbMonthlyMode') && byId('cbMonthlyMode').checked),
       monthlyRevenue: byId('monthlyRevenue') ? byId('monthlyRevenue').value : '',
-      monthlyTrips: byId('monthlyTrips') ? byId('monthlyTrips').value : ''
+      monthlyTrips: byId('monthlyTrips') ? byId('monthlyTrips').value : '',
+      driverPayMode: !!(byId('cbDriverTrip') && byId('cbDriverTrip').checked) ? 'trip' : 'day',
+      includeOvernight: !!(byId('cbIncludeOvernight') && byId('cbIncludeOvernight').checked)
     };
     var r = evaluate(f);
     var box = byId('result');
@@ -255,8 +258,8 @@
     // 明细表（成本 / 税务 / 载重 / 保本）
     H.push('<table class="detail">');
     H.push(row('线路里程（单程 / 往返）', fmt(r.km) + ' km / ' + fmt(r.roundKm) + ' km'));
-    H.push(row('司机往返天数', r.days + ' 天（日均 ' + fmt(r.v.kmPerDay) + ' km）'));
-    H.push(row('司机人工（工资+补贴·含吃住）', '¥' + fmt(r.driverCost) + '（日薪 ¥' + fmt(r.v.wage) + '）'));
+    H.push(row('司机计费方式', r.driverMode + '｜驾驶 ' + fmt(r.driverDriveHours) + 'h ＋ 装卸等待 ' + fmt(r.driverLoadingHours) + 'h ＝ 任务 ' + fmt(r.driverTaskHours) + 'h'));
+    H.push(row('司机人工（工资+补贴·含吃住）', '¥' + fmt(r.driverCost) + (r.driverMode === '按趟计' ? '（按趟工资 ¥' + fmt(r.v.tripWage) + '）' : (r.driverOvernight > 0 ? '（含过夜补贴 ¥' + fmt(r.driverOvernight) + '）' : '（日薪 ¥' + fmt(r.v.wage) + (r.v.hourlyWage ? ' / 时薪 ¥' + fmt(r.v.hourlyWage) : '') + '）'))));
     H.push(row('能源类型', energyLabel(r.energy)));
     if (r.energy === '氢电') H.push(row('能源费构成（氢 + 电）', '加氢 ¥' + fmt(r.eHydro) + ' ＋ 充电 ¥' + fmt(r.eElec)));
     H.push(row('回程货收入（冲减空返）', '¥' + fmt(r.returnRev)));
@@ -396,9 +399,30 @@
     var cbT = byId('edTireEnabled'); if (cbT) cbT.checked = (o.tireEnabled !== false);
     var cbL = byId('edLoadingEnabled'); if (cbL) cbL.checked = (o.loadingEnabled !== false);
 
-    // 车型表（增加 载重 / 容积 / 月固定）
+    // 车型表（能耗 + 司机人工时间参数 + 运营参数）
     var vt = byId('vehicleTable');
-    vt.innerHTML = '<tr><th>车型</th><th>油耗 L/100km</th><th>电耗 kWh/100km</th><th>氢耗 kg/100km</th><th>日工资</th><th>日里程</th><th>载重 t</th><th>容积 方</th><th>月固定 元/月</th></tr>' +
+    vt.innerHTML = '<thead>' +
+      '<tr>' +
+        '<th rowspan="2">车型</th>' +
+        '<th colspan="3">能耗</th>' +
+        '<th colspan="5">司机人工参数</th>' +
+        '<th colspan="4">运营</th>' +
+      '</tr>' +
+      '<tr>' +
+        '<th>油耗<br><small>L/100km</small></th>' +
+        '<th>电耗<br><small>kWh/100km</small></th>' +
+        '<th>氢耗<br><small>kg/100km</small></th>' +
+        '<th>日工资</th>' +
+        '<th>时薪</th>' +
+        '<th>短途<br>趟薪</th>' +
+        '<th>均速<br><small>km/h</small></th>' +
+        '<th>装卸<br><small>h</small></th>' +
+        '<th>载重<br><small>t</small></th>' +
+        '<th>容积<br><small>方</small></th>' +
+        '<th>日里程<br><small>km</small></th>' +
+        '<th>月固定<br><small>元/月</small></th>' +
+      '</tr>' +
+    '</thead>' +
       STATE.vehicles.map(function (v, i) {
         return '<tr>' +
           '<td>' + v.name + '</td>' +
@@ -406,9 +430,13 @@
           '<td><input data-v="' + i + '" data-k="elec" type="number" step="0.5" value="' + (v.elec == null ? '' : v.elec) + '" placeholder="-"></td>' +
           '<td><input data-v="' + i + '" data-k="hydrogen" type="number" step="0.5" value="' + (v.hydrogen == null ? '' : v.hydrogen) + '" placeholder="-"></td>' +
           '<td><input data-v="' + i + '" data-k="wage" type="number" step="10" value="' + v.wage + '"></td>' +
-          '<td><input data-v="' + i + '" data-k="kmPerDay" type="number" step="10" value="' + v.kmPerDay + '"></td>' +
+          '<td><input data-v="' + i + '" data-k="hourlyWage" type="number" step="1" value="' + (v.hourlyWage == null ? '' : v.hourlyWage) + '" placeholder="日薪/8"></td>' +
+          '<td><input data-v="' + i + '" data-k="tripWage" type="number" step="10" value="' + (v.tripWage == null ? '' : v.tripWage) + '" placeholder="-"></td>' +
+          '<td><input data-v="' + i + '" data-k="avgSpeed" type="number" step="1" value="' + (v.avgSpeed == null ? '' : v.avgSpeed) + '" placeholder="经验"></td>' +
+          '<td><input data-v="' + i + '" data-k="loadingTime" type="number" step="0.5" value="' + (v.loadingTime == null ? '' : v.loadingTime) + '" placeholder="1.5"></td>' +
           '<td><input data-v="' + i + '" data-k="capacity" type="number" step="0.5" value="' + v.capacity + '"></td>' +
           '<td><input data-v="' + i + '" data-k="volume" type="number" step="1" value="' + v.volume + '"></td>' +
+          '<td><input data-v="' + i + '" data-k="kmPerDay" type="number" step="10" value="' + v.kmPerDay + '"></td>' +
           '<td><input data-v="' + i + '" data-k="monthlyFixed" type="number" step="100" value="' + v.monthlyFixed + '"></td>' +
         '</tr>';
       }).join('');
@@ -1333,6 +1361,18 @@
     if (btnRecalc) btnRecalc.addEventListener('click', recalc);
     var cbMonth = byId('cbMonthlyMode');
     if (cbMonth) cbMonth.addEventListener('change', toggleMonthlyMode);
+    // 司机计费方式：按趟/按日 切换（实时重算）
+    var cbTrip = byId('cbDriverTrip');
+    if (cbTrip) cbTrip.addEventListener('change', function () {
+      if (STATE.config) { STATE.config.driverPayMode = cbTrip.checked ? 'trip' : 'day'; saveState(); }
+      renderResult();
+    });
+    // 过夜补贴：勾选控制（默认不计）
+    var cbO = byId('cbIncludeOvernight');
+    if (cbO) cbO.addEventListener('change', function () {
+      if (STATE.config) { STATE.config.includeOvernight = cbO.checked; saveState(); }
+      renderResult();
+    });
     // 一键纯底价：关闭全部可选成本（6项）+ 月固定成本分摊，仅保留油费+路费+司机
     var btnSimplify = byId('btnSimplify');
     if (btnSimplify) btnSimplify.addEventListener('click', function () {
@@ -1383,7 +1423,6 @@
         el.addEventListener('change', renderResult);
       });
       byId('vehicle').addEventListener('change', syncEnergyOptions);
-      byId('mode').addEventListener('change', toggleWeight);
     });
 
     // 3. 各功能模块绑定（互不影响）

@@ -204,6 +204,12 @@
         <label style="display:flex;align-items:center;gap:6px;margin-top:10px;">
           <input id="cbMonthlyMode" type="checkbox" style="width:auto;"> 按月总收入测算（一趟 / 天 + 月度利润）
         </label>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:8px;">
+          <input id="cbDriverTrip" type="checkbox" style="width:auto;"> 按趟计费（短途 / 临活适用·勾选后司机按「趟次工资」算，不折算天）
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+          <input id="cbIncludeOvernight" type="checkbox" style="width:auto;"> 含过夜补贴（长途多日在外时加发·默认不计，市场较少见）
+        </label>
         <div id="monthlyRow" style="display:none;">
           <label>月总收入（元，含税，本月所有趟次合计）</label>
           <input id="monthlyRevenue" type="number" step="500" min="0">
@@ -468,7 +474,7 @@
       <ul>
         <li><b>能源费</b>：油车 = 柴油价 × 百公里油耗 × 往返里程 ÷ 100；新能源 = 充电价 × 百公里电耗 × 往返里程 ÷ 100；<b>氢电混合 = 加氢价 × 百公里氢耗 ＋ 充电价 × 百公里电耗</b>（双能源融合核算）。</li>
         <li><b>过路费</b>：车型档位费率（元/km）× 省份系数 × 往返里程。</li>
-        <li><b>司机人工</b>：（日工资 + 食宿）× 往返天数；往返天数 = 往返里程 ÷ 车型日均里程。</li>
+        <li><b>司机人工</b>：默认按日计——短途（任务时间 ≤ 半日阈值）按半日工资；单程里程 ≤ 车型日里程能力按 1 日；超出按 ceil(单程 ÷ 日里程能力) 天；可选「按趟计费」时直接取短途趟次工资；过夜补贴默认不计，勾选后才加。</li>
         <li><b>居间/信息费</b>：运价 × 比例（默认 3%）；<b>停车过磅杂费</b>：每趟固定（默认 30 元）；<b>货损理赔准备金</b>：运价 × 比例（默认 0.8%）。</li>
         <li><b>其他变动</b>：轮胎/维修 + 保险分摊（元/km）× 往返里程 + 装卸费（零担按吨、其余按趟）。</li>
         <li><b>淡旺季系数</b>：旺季运力紧张成本上浮（&gt;1），淡季下浮（&lt;1）；可联网同步运价指数校准。</li>
@@ -489,11 +495,11 @@
   </div>
 </div>
 
-<script src="data.js?v=20261001u"></script>
-<script src="cities.js?v=20261001u"></script>
-<script src="districts.js?v=20261001u"></script>
-<script src="model.js?v=20261001u"></script>
-<script src="app.js?v=20261001u"></script>
+<script src="data.js?v=20261001aa"></script>
+<script src="cities.js?v=20261001aa"></script>
+<script src="districts.js?v=20261001aa"></script>
+<script src="model.js?v=20261001aa"></script>
+<script src="app.js?v=20261001aa"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {

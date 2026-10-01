@@ -28,6 +28,72 @@
     return (f.vehicleId || '?') + '|' + (f.energy || '?') + '|' + (f.mode || '?');
   }
 
+  // 司机人工成本：以「天 / 趟」为单位的市场化科学计费，不按驾驶工时折算多天。
+  //   payMode='day'（默认·市场主流）：
+  //     短途（任务时间 ≤ 半日阈值）→ 半日计；
+  //     常规线路（单程里程 ≤ 车型日里程能力 kmPerDay）→ 1 天（一天跑完一趟即 1 个工作日）；
+  //     超长途（单程里程 > kmPerDay）→ 按 ceil(单程 / kmPerDay) 天（司机需连续多日在外）；
+  //   payMode='trip'（短途/临活）：固定趟次工资，不参与天/小时折算。
+  //   includeOvernight：是否计入过夜补贴（评估页可勾选，默认不加；仅多日在外时生效）。
+  // 返回 { cost, days, taskHours, driveHours, loadingHours, overnight, mode }
+  function computeDriverCost(v, roundKm, payMode, includeOvernight) {
+    var dailyWage = num(v.wage);
+    var tripWage = num(v.tripWage, 0);
+    var kmPerDay = Math.max(1, num(v.kmPerDay, 500));     // 计费日里程能力（单程）：单程≤此值均计 1 天
+    var minHours = Math.max(0.5, num(v.minChargeHours, 4)); // 短途半日阈值（任务小时）
+    var avgSpeed = Math.max(1, num(v.avgSpeed, 45));       // 综合平均时速：仅用于展示驾驶时长，不参与天数判定
+    var loadingTime = Math.max(0, num(v.loadingTime, 1.5));
+    var overnightAllowance = Math.max(0, num(v.overnightAllowance, 0));
+
+    var oneWay = roundKm / 2;
+    var driveHours = roundKm / avgSpeed;
+    var taskHours = driveHours + loadingTime;
+
+    // 按趟计费：固定趟次工资，忽略天/小时折算（短途/临时活适用）
+    if (payMode === 'trip') {
+      return {
+        cost: tripWage,
+        days: 0,
+        taskHours: taskHours,
+        driveHours: driveHours,
+        loadingHours: loadingTime,
+        overnight: 0,
+        mode: '按趟计'
+      };
+    }
+
+    // 按日计费（市场主流）
+    // 1) 短途：任务时间很短（≤ 半日阈值）→ 半日计（与长途解耦，不按工时推多天）
+    if (taskHours <= minHours) {
+      return {
+        cost: dailyWage * 0.5,
+        days: 0.5,
+        taskHours: taskHours,
+        driveHours: driveHours,
+        loadingHours: loadingTime,
+        overnight: 0,
+        mode: '半日计'
+      };
+    }
+    // 2) 常规/长途：按「单程里程能力」算在外天数（不按工时折算）
+    //    单程里程 ≤ 日里程能力 → 1 天；超出 → 按 ceil(单程 / 日里程能力) 天
+    var days = oneWay <= kmPerDay ? 1 : Math.ceil(oneWay / kmPerDay);
+    days = Math.max(1, days);
+    // 3) 过夜补贴（勾选才加，且仅多日在外时）
+    var overnightCost = (includeOvernight && days > 1) ? overnightAllowance * (days - 1) : 0;
+    var cost = dailyWage * days + overnightCost;
+
+    return {
+      cost: cost,
+      days: days,
+      taskHours: taskHours,
+      driveHours: driveHours,
+      loadingHours: loadingTime,
+      overnight: overnightCost,
+      mode: days > 1 ? (days + '天计') : '全日计'
+    };
+  }
+
   // ---------- 核心计算（不含保本/建议报价求解） ----------
   function compute(STATE, f) {
     var D = root.DEFAULTS || {};
@@ -36,9 +102,9 @@
 
     var km = max0(num(f.km));
     var roundKm = km * 2;                                   // 往返里程（车辆需返回）
-    var kmPerDay = v.kmPerDay || 400;
-    var days = Math.max(1, Math.ceil(roundKm / kmPerDay));  // 司机往返总天数
     var energy = f.energy;                                  // '油' | '电' | '氢电'
+    var dc = computeDriverCost(v, roundKm, f.driverPayMode, !!f.includeOvernight); // 司机人工：按日/按趟 + 过夜补贴（均勾选控制）
+    var days = dc.days;                                     // 计费天数（可能 0.5/1/2…）
     var cfg = STATE.config || {};
     var tax = (cfg.tax && cfg.tax.enabled) ? cfg.tax : null;
     var other = STATE.other || {};
@@ -72,8 +138,8 @@
     var energyCost = eDiesel + eElec + eHydro;
 
     var tollCost = tollRate * roundKm;
-    // 司机人工 = 日工资 × 往返天数（日工资已含补贴/吃住，运价评估不单列餐补）
-    var driverCost = num(v.wage) * days;
+    // 司机人工 = 按日/趟市场化计费（短途半日 / 单日 / 多日 + 可选过夜补贴）
+    var driverCost = dc.cost;
 
     // 轮胎/维修、保险分摊、装卸费 均为可选成本，可单独开关（关闭即不计）
     var tireOn = (other.tireEnabled !== false);
@@ -183,8 +249,11 @@
 
     var res = {
       v: v, km: km, roundKm: roundKm, days: days, seasonCoef: seasonCoef, energy: energy,
-      eDiesel: eDiesel, eElec: eElec, eHydro: eHydro, energyCost: energyCost,
+      eDiesel: eDiesel, eElec: eElec, eHydro: eHydro,       energyCost: energyCost,
       tollCost: tollCost, driverCost: driverCost, otherVar: otherVar,
+      driverTaskHours: dc.taskHours, driverDriveHours: dc.driveHours,
+      driverLoadingHours: dc.loadingHours, driverOvernight: dc.overnight,
+      driverMode: dc.mode, driverDays: dc.days,
       broker: broker, misc: misc, risk: risk,
       insuranceOn: insuranceOn, brokerOn: brokerOn, miscOn: miscOn, riskOn: riskOn,
       tireOn: tireOn, loadingOn: loadingOn,
